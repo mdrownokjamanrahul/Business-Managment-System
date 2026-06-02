@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>বিক্রির হিস্টরি</title>
+<link rel="stylesheet" href="shared-styles.css">
+<style>
+.sale-card {
+  background:var(--card); border:1.5px solid var(--border); border-radius:16px;
+  padding:16px; margin-bottom:12px; box-shadow:var(--shadow);
+}
+.sale-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+.cust-avatar { width:42px; height:42px; background:linear-gradient(135deg,#4f6ef7,#6c8fff); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; flex-shrink:0; }
+.cust-info { flex:1; padding:0 10px; }
+.cust-name { font-size:15px; font-weight:700; }
+.cust-phone { font-size:12px; color:var(--muted); margin-top:2px; }
+.sale-amount { font-size:18px; font-weight:800; color:var(--primary); }
+.chips-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+.sale-footer { display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border); padding-top:10px; }
+.sale-date { font-size:12px; color:var(--muted); }
+.view-btn { background:linear-gradient(135deg,#eff6ff,#dbeafe); color:var(--blue); border:1px solid #bfdbfe; border-radius:10px; padding:7px 16px; font-family:'Hind Siliguri',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:0.15s; }
+.view-btn:active { transform:scale(0.96); }
+
+.modal-item { display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border-radius:12px; margin-bottom:8px; }
+.mi-name { font-size:14px; font-weight:700; }
+.mi-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+.mi-price { text-align:right; }
+.mi-total { font-size:15px; font-weight:800; color:var(--primary); }
+.mi-profit { font-size:11px; color:var(--green); margin-top:2px; }
+
+.modal-summary { background:var(--bg); border-radius:14px; padding:14px; margin-top:12px; }
+.ms-row { display:flex; justify-content:space-between; font-size:14px; padding:5px 0; }
+.ms-row.big { font-size:17px; font-weight:800; border-top:1px solid var(--border); margin-top:8px; padding-top:10px; }
+
+.filter-row { display:flex; gap:10px; margin-bottom:14px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div>
+    <h1>বিক্রির হিস্টরি</h1>
+    <div class="sub" id="totalSalesInfo">সকল বিক্রয় রেকর্ড</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="card" style="padding:14px">
+    <div class="filter-row">
+      <input type="text" placeholder="🔍 নাম বা ফোন..." id="searchInput" oninput="filterSales()" style="flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:14px;outline:none">
+      <input type="date" id="dateFilter" onchange="filterSales()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:11px 10px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:13px;outline:none">
+    </div>
+  </div>
+  <div id="saleList"><div class="empty-state"><div class="empty-icon">⏳</div><p>লোড হচ্ছে...</p></div></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle"></div>
+      <button class="modal-close" onclick="document.getElementById('modalOverlay').classList.remove('open')">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div></a>
+  <a href="due-accounts.html" class="nav-item"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div></a>
+  <a href="reports.html" class="nav-item"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div></a>
+</nav>
+
+<script type="module">
+import { auth, requireAuth, userRef, get } from './firebase-config.js';
+let _uid='';
+let allSales={};
+
+function formatDate(iso){ if(!iso)return''; const d=new Date(iso); return d.toLocaleDateString('bn-BD',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+
+function loadSales(){ get(userRef(_uid,'sales')).then(snap=>{ allSales=snap.val()||{}; renderSales(allSales); document.getElementById('totalSalesInfo').textContent=Object.keys(allSales).length+'টি বিক্রয় রেকর্ড'; }); }
+
+function renderSales(sales){
+  const list=document.getElementById('saleList');
+  const keys=Object.keys(sales).sort((a,b)=>new Date(sales[b].date||0)-new Date(sales[a].date||0));
+  if(!keys.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>কোনো বিক্রয় নেই</p></div>';return;}
+  list.innerHTML=keys.map(k=>{
+    const s=sales[k],due=s.due||0;
+    return `<div class="sale-card">
+      <div class="sale-header">
+        <div class="cust-avatar">👤</div>
+        <div class="cust-info">
+          <div class="cust-name">${s.customerName||'অজানা'}</div>
+          <div class="cust-phone">📞 ${s.customerPhone||'নাম্বার নেই'}</div>
+        </div>
+        <div class="sale-amount">৳${(s.totalAmount||0).toFixed(0)}</div>
+      </div>
+      <div class="chips-row">
+        <span class="chip chip-green">💰 লাভ ৳${(s.profit||0).toFixed(0)}</span>
+        <span class="chip chip-blue">নগদ ৳${(s.cashPaid||0).toFixed(0)}</span>
+        ${due>0?`<span class="chip chip-red">বাকি ৳${due.toFixed(0)}</span>`:'<span class="chip chip-green">✅ পরিশোধ</span>'}
+      </div>
+      <div class="sale-footer">
+        <div class="sale-date">📅 ${formatDate(s.date)}</div>
+        <button class="view-btn" onclick="openModal('${k}')">👁 বিস্তারিত</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.filterSales=function(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const date=document.getElementById('dateFilter').value;
+  const f={};
+  Object.keys(allSales).forEach(k=>{
+    const s=allSales[k];
+    const mt=!q||(s.customerName||'').toLowerCase().includes(q)||(s.customerPhone||'').includes(q);
+    const md=!date||(s.date||'').startsWith(date);
+    if(mt&&md)f[k]=s;
+  });
+  renderSales(f);
+};
+
+window.openModal=function(saleId){
+  const s=allSales[saleId]; if(!s)return;
+  document.getElementById('modalTitle').textContent=s.customerName+'-এর ক্রয় বিবরণ';
+  const items=s.items||{};
+  let body=Object.keys(items).map(k=>{
+    const item=items[k];
+    const profit=((item.sellPrice||0)-(item.buyPrice||0))*(item.qty||1);
+    return `<div class="modal-item">
+      <div><div class="mi-name">${item.name||k}</div><div class="mi-meta">ক্রয়: ৳${item.buyPrice||0} × ${item.qty||1} পিস</div></div>
+      <div class="mi-price"><div class="mi-total">৳${((item.sellPrice||0)*(item.qty||1)).toFixed(0)}</div><div class="mi-profit">লাভ ৳${profit.toFixed(0)}</div></div>
+    </div>`;
+  }).join('');
+  body+=`<div class="modal-summary">
+    <div class="ms-row"><span>মোট বিক্রয়</span><span style="font-weight:700">৳${(s.totalAmount||0).toFixed(0)}</span></div>
+    <div class="ms-row" style="color:var(--green)"><span>মোট লাভ</span><span style="font-weight:700">৳${(s.profit||0).toFixed(0)}</span></div>
+    <div class="ms-row"><span>নগদ পেইড</span><span>৳${(s.cashPaid||0).toFixed(0)}</span></div>
+    <div class="ms-row big" style="color:var(--red)"><span>বাকি</span><span>৳${(s.due||0).toFixed(0)}</span></div>
+  </div>`;
+  document.getElementById('modalBody').innerHTML=body;
+  document.getElementById('modalOverlay').classList.add('open');
+};
+requireAuth((user)=>{ _uid=user.uid; loadSales(); });
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>

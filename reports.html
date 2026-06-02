@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>রিপোর্ট ও ইনভয়েস</title>
+<link rel="stylesheet" href="shared-styles.css">
+<style>
+.stats-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+.stat-tile { background:var(--bg); border-radius:14px; padding:14px; }
+.st-val { font-size:18px; font-weight:800; }
+.st-label { font-size:11px; color:var(--muted); margin-top:2px; }
+
+.sale-result {
+  background:var(--bg); border-radius:12px; padding:12px; margin-bottom:8px;
+  display:flex; justify-content:space-between; align-items:center;
+  border-left:3px solid var(--primary);
+}
+.sr-name { font-size:14px; font-weight:700; }
+.sr-meta { font-size:11px; color:var(--muted); margin-top:2px; }
+.sr-amount { font-size:15px; font-weight:800; color:var(--primary); }
+
+.cust-result {
+  background:var(--bg); border-radius:14px; padding:14px; margin-bottom:10px;
+  cursor:pointer; transition:0.15s; border:1.5px solid var(--border);
+}
+.cust-result:active { border-color:var(--primary); transform:scale(0.99); }
+.cr-header { display:flex; justify-content:space-between; align-items:center; }
+.cr-name { font-size:15px; font-weight:700; }
+.cr-total { font-size:15px; font-weight:800; color:var(--primary); }
+.cr-meta { font-size:12px; color:var(--muted); margin-top:6px; }
+.cr-action { font-size:12px; color:var(--purple); font-weight:700; margin-top:6px; text-align:right; }
+
+/* ===== INVOICE STYLES ===== */
+/* The invoice is a separate full-page div that shows ONLY during print */
+#invoicePage {
+  display: none;
+  font-family: 'Hind Siliguri', Arial, sans-serif;
+  background: #fff;
+  color: #000;
+  padding: 30px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+@media print {
+  /* Hide everything */
+  body > *:not(#invoicePage) { display: none !important; }
+  #invoicePage {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    padding: 20px 30px;
+    background: #fff;
+    color: #000;
+    font-size: 13px;
+    z-index: 9999;
+  }
+  .no-print { display: none !important; }
+}
+
+.inv-top { text-align: center; border-bottom: 3px double #000; padding-bottom: 16px; margin-bottom: 16px; }
+.inv-biz-name { font-size: 24px; font-weight: 800; color: #000; }
+.inv-biz-sub { font-size: 13px; color: #444; margin-top: 4px; }
+.inv-meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 16px; }
+.inv-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+.inv-table th { background: #f0f0f0; padding: 9px 10px; text-align: left; border: 1px solid #ccc; font-weight: 700; }
+.inv-table td { padding: 8px 10px; border: 1px solid #ddd; }
+.inv-table tr:nth-child(even) td { background: #fafafa; }
+.inv-totals { border-top: 2px solid #000; padding-top: 12px; width: 280px; margin-left: auto; }
+.inv-total-row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+.inv-total-row.big { font-size: 17px; font-weight: 800; border-top: 2px solid #000; margin-top: 6px; padding-top: 8px; }
+.inv-footer { text-align: center; margin-top: 30px; font-size: 12px; color: #555; border-top: 1px dashed #ccc; padding-top: 12px; }
+
+/* Invoice modal overlay (for preview before print) */
+.inv-modal { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:500; display:none; overflow-y:auto; padding:20px; }
+.inv-modal.open { display:block; }
+.inv-preview-wrap { background:#fff; border-radius:16px; max-width:500px; margin:0 auto; overflow:hidden; }
+.inv-preview-inner { padding:24px; color:#000; font-family:'Hind Siliguri',Arial,sans-serif; }
+.inv-actions-bar { background:#f8f9fa; padding:14px 20px; display:flex; gap:10px; border-top:1px solid #ddd; }
+.inv-print-btn { flex:1; padding:12px; background:#1e2d4d; color:#fff; border:none; border-radius:10px; font-family:'Hind Siliguri',sans-serif; font-size:15px; font-weight:700; cursor:pointer; }
+.inv-close-btn { flex:1; padding:12px; background:#f0f0f0; color:#333; border:none; border-radius:10px; font-family:'Hind Siliguri',sans-serif; font-size:15px; font-weight:700; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<!-- HIDDEN INVOICE FOR PRINT — outside all other divs -->
+<div id="invoicePage"></div>
+
+<div class="page-header" style="background:linear-gradient(135deg,#a855f7,#7c3aed)">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div>
+    <h1>রিপোর্ট ও ইনভয়েস</h1>
+    <div class="sub">তারিখ দিয়ে হিসাব ও ইনভয়েস</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Date Range -->
+  <div class="card">
+    <div class="card-title">📅 তারিখ দিয়ে হিসাব</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group"><label>শুরু তারিখ</label><input type="date" id="startDate"></div>
+      <div class="input-group"><label>শেষ তারিখ</label><input type="date" id="endDate"></div>
+    </div>
+    <button class="btn btn-primary" onclick="searchByDate()">🔍 সার্চ করুন</button>
+    <div id="dateStats" style="display:none">
+      <div class="stats-row">
+        <div class="stat-tile"><div class="st-val" style="color:var(--primary)" id="dsTotalSales">৳০</div><div class="st-label">মোট বিক্রয়</div></div>
+        <div class="stat-tile"><div class="st-val" style="color:var(--green)" id="dsTotalProfit">৳০</div><div class="st-label">মোট লাভ</div></div>
+        <div class="stat-tile"><div class="st-val" style="color:var(--blue)" id="dsTotalCash">৳০</div><div class="st-label">নগদ পেইড</div></div>
+        <div class="stat-tile"><div class="st-val" style="color:var(--red)" id="dsTotalDue">৳০</div><div class="st-label">মোট বাকি</div></div>
+        <div class="stat-tile"><div class="st-val" style="color:var(--purple)" id="dsTotalCount">০</div><div class="st-label">বিক্রি সংখ্যা</div></div>
+        <div class="stat-tile"><div class="st-val" style="color:var(--orange)" id="dsDuePersons">০</div><div class="st-label">বাকিদার</div></div>
+      </div>
+      <div style="margin-top:14px" id="dateSalesList"></div>
+    </div>
+  </div>
+
+  <!-- Invoice -->
+  <div class="card">
+    <div class="card-title">🧾 বিক্রেতার ইনভয়েস তৈরি</div>
+    <div class="input-group">
+      <label>ক্রেতার নাম বা ফোন নাম্বার</label>
+      <input type="text" id="custSearch" placeholder="নাম বা ফোন লিখুন..." oninput="searchCustomer()">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group"><label>শুরু তারিখ (ঐচ্ছিক)</label><input type="date" id="invStartDate" onchange="searchCustomer()"></div>
+      <div class="input-group"><label>শেষ তারিখ (ঐচ্ছিক)</label><input type="date" id="invEndDate" onchange="searchCustomer()"></div>
+    </div>
+    <div id="customerList"><div style="text-align:center;color:var(--muted);padding:20px;font-size:14px">নাম বা ফোন দিয়ে ক্রেতা খুঁজুন</div></div>
+  </div>
+</div>
+
+<!-- Invoice Preview Modal -->
+<div class="inv-modal" id="invModal">
+  <div class="inv-preview-wrap">
+    <div class="inv-preview-inner" id="invPreviewInner"></div>
+    <div class="inv-actions-bar no-print">
+      <button class="inv-print-btn" onclick="printInvoice()">🖨️ প্রিন্ট করুন</button>
+      <button class="inv-close-btn" onclick="document.getElementById('invModal').classList.remove('open')">✕ বন্ধ</button>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div></a>
+  <a href="due-accounts.html" class="nav-item"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div></a>
+  <a href="reports.html" class="nav-item active"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div><div class="nav-active-dot"></div></a>
+</nav>
+
+<script type="module">
+import { requireAuth, userRef, get } from './firebase-config.js';
+
+let allSales = {};
+let bizName = 'আমার ব্যবসা';
+let bizAddress = '';
+let bizPhone = '';
+let currentInvoiceHTML = '';
+let _uid = '';
+
+// Default dates
+const today = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Dhaka'});
+document.getElementById('endDate').value = today;
+document.getElementById('startDate').value = today;
+
+requireAuth((user) => {
+  _uid = user.uid;
+  // Load settings
+  get(userRef(_uid,'settings')).then(s => {
+    const v = s.val() || {};
+    bizName = v.bizName || 'আমার ব্যবসা';
+    bizAddress = v.bizAddress || '';
+    bizPhone = v.bizPhone || '';
+  });
+  // Load all sales
+  get(userRef(_uid,'sales')).then(snap => { allSales = snap.val() || {}; });
+});
+
+window.searchByDate = function() {
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
+  if (!start || !end) { alert('তারিখ দিন'); return; }
+  let ts=0, tp=0, tc=0, td=0, txCount=0, duePersons=0;
+  const matching = {};
+  Object.keys(allSales).forEach(k => {
+    const s = allSales[k];
+    const sd = s.date ? new Date(s.date).toLocaleDateString('en-CA',{timeZone:'Asia/Dhaka'}) : '';
+    if (sd >= start && sd <= end) {
+      matching[k] = s;
+      ts += s.totalAmount||0; tp += s.profit||0; tc += s.cashPaid||0; td += s.due||0;
+      txCount++; if((s.due||0)>0) duePersons++;
+    }
+  });
+  document.getElementById('dsTotalSales').textContent = '৳'+ts.toFixed(0);
+  document.getElementById('dsTotalProfit').textContent = '৳'+tp.toFixed(0);
+  document.getElementById('dsTotalCash').textContent = '৳'+tc.toFixed(0);
+  document.getElementById('dsTotalDue').textContent = '৳'+td.toFixed(0);
+  document.getElementById('dsTotalCount').textContent = txCount;
+  document.getElementById('dsDuePersons').textContent = duePersons;
+  document.getElementById('dateStats').style.display = 'block';
+  const keys = Object.keys(matching).sort((a,b)=>new Date(matching[b].date||0)-new Date(matching[a].date||0));
+  const list = document.getElementById('dateSalesList');
+  if (!keys.length) { list.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px">এই সময়ে কোনো বিক্রয় নেই</div>'; return; }
+  list.innerHTML = keys.map(k => {
+    const s = matching[k];
+    const d = new Date(s.date||0).toLocaleDateString('bn-BD',{day:'numeric',month:'short'});
+    return `<div class="sale-result">
+      <div><div class="sr-name">${s.customerName||'অজানা'}</div><div class="sr-meta">📅 ${d} · লাভ ৳${(s.profit||0).toFixed(0)} · বাকি ৳${(s.due||0).toFixed(0)}</div></div>
+      <div class="sr-amount">৳${(s.totalAmount||0).toFixed(0)}</div>
+    </div>`;
+  }).join('');
+};
+
+window.searchCustomer = function() {
+  const q = document.getElementById('custSearch').value.trim().toLowerCase();
+  const invStart = document.getElementById('invStartDate').value;
+  const invEnd = document.getElementById('invEndDate').value;
+  if (!q) { document.getElementById('customerList').innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px">নাম বা ফোন দিয়ে ক্রেতা খুঁজুন</div>'; return; }
+
+  const customers = {};
+  Object.keys(allSales).forEach(k => {
+    const s = allSales[k];
+    if (!(s.customerName||'').toLowerCase().includes(q) && !(s.customerPhone||'').includes(q)) return;
+    let rawDate = s.date;
+    if (rawDate && typeof rawDate === 'object' && rawDate.seconds) rawDate = rawDate.seconds * 1000;
+    const sd = rawDate ? new Date(rawDate).toLocaleDateString('en-CA',{timeZone:'Asia/Dhaka'}) : '';
+    if (invStart && invEnd && sd && (sd < invStart || sd > invEnd)) return;
+    if (invStart && !invEnd && sd && sd < invStart) return;
+    if (!invStart && invEnd && sd && sd > invEnd) return;
+    const key = (s.customerPhone||s.customerName||'').trim();
+    if (!customers[key]) customers[key] = { name:s.customerName, phone:s.customerPhone, sales:[], total:0, due:0, profit:0, cash:0 };
+    customers[key].sales.push({...s, id:k});
+    customers[key].total += s.totalAmount||0;
+    customers[key].due += s.due||0;
+    customers[key].profit += s.profit||0;
+    customers[key].cash += s.cashPaid||0;
+  });
+
+  const list = document.getElementById('customerList');
+  const keys = Object.keys(customers);
+  if (!keys.length) { list.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;font-size:14px">কোনো ক্রেতা পাওয়া যায়নি</div>'; return; }
+  list.innerHTML = keys.map(k => {
+    const c = customers[k];
+    return `<div class="cust-result" onclick="generateInvoice('${k}')">
+      <div class="cr-header"><span class="cr-name">👤 ${c.name||'অজানা'}</span><span class="cr-total">৳${c.total.toFixed(0)}</span></div>
+      <div class="cr-meta">📞 ${c.phone||'-'} · ${c.sales.length}টি বিক্রয় · বাকি: ৳${c.due.toFixed(0)}</div>
+      <div class="cr-meta" style="color:var(--green)">লাভ: ৳${c.profit.toFixed(0)}</div>
+      <div class="cr-action">👆 ইনভয়েস তৈরি করুন →</div>
+    </div>`;
+  }).join('');
+  window._customers = customers;
+};
+
+window.generateInvoice = function(custKey) {
+  const c = window._customers[custKey];
+  if (!c) return;
+  const invDate = new Date().toLocaleDateString('bn-BD',{day:'numeric',month:'long',year:'numeric'});
+  const invNo = 'INV-' + Date.now().toString().slice(-6);
+  const invStart = document.getElementById('invStartDate').value;
+  const invEnd = document.getElementById('invEndDate').value;
+  const period = invStart ? `${invStart} থেকে ${invEnd||invStart}` : 'সকল সময়';
+
+  let rows = '', serial = 1;
+  c.sales.forEach(s => {
+    const sDate = new Date(s.date||0).toLocaleDateString('bn-BD',{day:'numeric',month:'short',year:'numeric'});
+    Object.values(s.items||{}).forEach(item => {
+      const lineTotal = (item.sellPrice||0)*(item.qty||1);
+      rows += `<tr>
+        <td>${serial++}</td>
+        <td>${item.name||'-'}</td>
+        <td style="text-align:center">${item.qty||1}</td>
+        <td style="text-align:right">৳${item.sellPrice||0}</td>
+        <td style="text-align:right">৳${lineTotal.toFixed(0)}</td>
+        <td style="text-align:center;font-size:11px;color:#666">${sDate}</td>
+      </tr>`;
+    });
+  });
+
+  const invHTML = `
+    <div style="text-align:center;border-bottom:3px double #000;padding-bottom:14px;margin-bottom:14px">
+      <div style="font-size:22px;font-weight:800">${bizName}</div>
+      ${bizAddress?`<div style="font-size:12px;color:#444;margin-top:3px">${bizAddress}</div>`:''}
+      ${bizPhone?`<div style="font-size:12px;color:#444">📞 ${bizPhone}</div>`:''}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:14px">
+      <div>
+        <div><strong>ক্রেতা:</strong> ${c.name||'-'}</div>
+        <div><strong>ফোন:</strong> ${c.phone||'-'}</div>
+        <div style="margin-top:4px;color:#555;font-size:12px">সময়কাল: ${period}</div>
+      </div>
+      <div style="text-align:right">
+        <div><strong>ইনভয়েস নং:</strong> ${invNo}</div>
+        <div><strong>তারিখ:</strong> ${invDate}</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">
+      <thead>
+        <tr style="background:#f0f0f0">
+          <th style="padding:8px;border:1px solid #ccc;text-align:left">#</th>
+          <th style="padding:8px;border:1px solid #ccc;text-align:left">পণ্যের নাম</th>
+          <th style="padding:8px;border:1px solid #ccc;text-align:center">পরিমাণ</th>
+          <th style="padding:8px;border:1px solid #ccc;text-align:right">একক মূল্য</th>
+          <th style="padding:8px;border:1px solid #ccc;text-align:right">মোট</th>
+          <th style="padding:8px;border:1px solid #ccc;text-align:center">তারিখ</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="width:260px;margin-left:auto">
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-top:1px solid #ccc">
+        <span>মোট বিক্রয়:</span><span style="font-weight:700">৳${c.total.toFixed(0)}</span>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+        <span>নগদ পেইড:</span><span>৳${c.cash.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;border-top:2px solid #000;margin-top:4px;color:#cc0000">
+        <span>মোট বাকি:</span><span>৳${c.due.toFixed(0)}</span>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:30px;font-size:12px;color:#777;border-top:1px dashed #ccc;padding-top:12px">
+      ধন্যবাদ আমাদের সাথে ব্যবসা করার জন্য · ${bizName}
+    </div>`;
+
+  currentInvoiceHTML = invHTML;
+
+  // Show in modal preview
+  document.getElementById('invPreviewInner').innerHTML = invHTML;
+  document.getElementById('invModal').classList.add('open');
+};
+
+window.printInvoice = function() {
+  // Write to the hidden print div and trigger print
+  document.getElementById('invoicePage').innerHTML = currentInvoiceHTML;
+  document.getElementById('invModal').classList.remove('open');
+  setTimeout(() => { window.print(); }, 100);
+};
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>

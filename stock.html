@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>স্টকে থাকা পণ্য</title>
+<link rel="stylesheet" href="shared-styles.css">
+<style>
+.stats-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.stat-tile { background:var(--card); border-radius:16px; padding:16px; box-shadow:var(--shadow); border:1px solid var(--border); display:flex; align-items:center; gap:12px; }
+.st-icon { width:44px; height:44px; border-radius:12px; font-size:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.st-val { font-size:18px; font-weight:800; }
+.st-label { font-size:11px; color:var(--muted); margin-top:2px; }
+
+.filter-tabs { display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:14px; }
+.filter-tabs::-webkit-scrollbar { display:none; }
+.tab-btn { background:var(--card); border:1.5px solid var(--border); border-radius:20px; padding:8px 16px; color:var(--muted); font-family:'Hind Siliguri',sans-serif; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; transition:0.15s; }
+.tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+.stock-item { background:var(--card); border:1.5px solid var(--border); border-radius:16px; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; box-shadow:var(--shadow); }
+.stock-item.low { border-left:4px solid var(--orange); }
+.stock-item.out { border-left:4px solid #d1d5db; opacity:0.65; }
+.stock-item.good { border-left:4px solid var(--green); }
+.stock-item img { width:60px; height:60px; object-fit:cover; border-radius:12px; background:var(--bg); flex-shrink:0; }
+.si-info { flex:1; }
+.si-name { font-size:15px; font-weight:700; }
+.si-type { font-size:12px; color:var(--muted); margin-top:2px; }
+.si-prices { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.si-count { text-align:right; }
+.si-num { font-size:30px; font-weight:800; }
+.si-num.good { color:var(--green); }
+.si-num.low { color:var(--orange); }
+.si-num.out { color:#9ca3af; }
+.si-unit { font-size:11px; color:var(--muted); }
+.si-status { font-size:10px; margin-top:2px; padding:2px 6px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+<div class="page-header" style="background:linear-gradient(135deg,#3b82f6,#6366f1)">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div>
+    <h1>স্টকে থাকা পণ্য</h1>
+    <div class="sub">বিক্রয়ের পর বর্তমান স্টক</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="stats-row">
+    <div class="stat-tile"><div class="st-icon" style="background:#eff6ff">📦</div><div><div class="st-val" style="color:var(--blue)" id="totalTypes">০</div><div class="st-label">পণ্য প্রকার</div></div></div>
+    <div class="stat-tile"><div class="st-icon" style="background:#fff7ed">💰</div><div><div class="st-val" style="color:var(--orange)" id="totalStockVal">৳০</div><div class="st-label">স্টক মূল্য</div></div></div>
+    <div class="stat-tile"><div class="st-icon" style="background:#fef9c3">⚠️</div><div><div class="st-val" style="color:var(--orange)" id="lowStockCount">০</div><div class="st-label">কম স্টক</div></div></div>
+    <div class="stat-tile"><div class="st-icon" style="background:#f3f4f6">❌</div><div><div class="st-val" style="color:#9ca3af" id="outStockCount">০</div><div class="st-label">স্টক শেষ</div></div></div>
+  </div>
+
+  <div class="card" style="padding:14px;margin-bottom:12px">
+    <input type="text" placeholder="🔍 পণ্যের নাম দিয়ে খুঁজুন..." id="searchInput" oninput="renderProducts()" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:15px;outline:none">
+  </div>
+
+  <div class="filter-tabs">
+    <button class="tab-btn active" onclick="setFilter('all',this)">সব পণ্য</button>
+    <button class="tab-btn" onclick="setFilter('good',this)">✅ পর্যাপ্ত স্টক</button>
+    <button class="tab-btn" onclick="setFilter('low',this)">⚠️ কম স্টক</button>
+    <button class="tab-btn" onclick="setFilter('out',this)">❌ স্টক শেষ</button>
+  </div>
+
+  <div id="stockList"><div class="empty-state"><div class="empty-icon">⏳</div><p>লোড হচ্ছে...</p></div></div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item active"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div><div class="nav-active-dot"></div></a>
+  <a href="due-accounts.html" class="nav-item"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div></a>
+  <a href="reports.html" class="nav-item"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div></a>
+</nav>
+
+<script type="module">
+import { auth, requireAuth, userRef, get } from './firebase-config.js';
+let _uid='';
+let allProducts={}, currentFilter='all';
+
+function getStatus(s){ return s<=0?'out':s<=5?'low':'good'; }
+
+function loadProducts(){ get(userRef(_uid,'products')).then(snap=>{ allProducts=snap.val()||{}; renderProducts(); calcStats(); }); }
+
+function calcStats(){
+  const keys=Object.keys(allProducts);
+  document.getElementById('totalTypes').textContent=keys.length;
+  let sv=0,low=0,out=0;
+  keys.forEach(k=>{ const p=allProducts[k],s=p.stock||0; sv+=(p.buyPrice||0)*s; if(s<=0)out++;else if(s<=5)low++; });
+  document.getElementById('totalStockVal').textContent='৳'+sv.toLocaleString();
+  document.getElementById('lowStockCount').textContent=low;
+  document.getElementById('outStockCount').textContent=out;
+}
+
+window.renderProducts=function(){
+  const list=document.getElementById('stockList');
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const keys=Object.keys(allProducts).filter(k=>{
+    const p=allProducts[k],status=getStatus(p.stock||0);
+    return (currentFilter==='all'||status===currentFilter) && (!q||(p.name||'').toLowerCase().includes(q));
+  }).sort((a,b)=>(allProducts[a].name||'').localeCompare(allProducts[b].name||'','bn'));
+  if(!keys.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>কোনো পণ্য পাওয়া যায়নি</p></div>';return;}
+  list.innerHTML=keys.map(k=>{
+    const p=allProducts[k],s=p.stock||0,status=getStatus(s);
+    const tv=(p.buyPrice||0)*s;
+    const statusText=status==='out'?'স্টক শেষ':status==='low'?'কম স্টক':'পর্যাপ্ত';
+    const statusStyle=status==='out'?'background:#f3f4f6;color:#9ca3af':status==='low'?'background:#fef9c3;color:var(--orange)':'background:#f0fdf4;color:var(--green)';
+    return `<div class="stock-item ${status}">
+      <img src="${p.imgUrl||'https://placehold.co/60x60/f0f4ff/8494b0?text=📦'}" onerror="this.src='https://placehold.co/60x60/f0f4ff/8494b0?text=📦'">
+      <div class="si-info">
+        <div class="si-name">${p.name||''}</div>
+        <div class="si-type">${p.type||'পণ্য'}</div>
+        <div class="si-prices">
+          <span class="chip chip-blue" style="font-size:11px">ক্রয়: ৳${p.buyPrice||0}</span>
+          <span class="chip chip-orange" style="font-size:11px">মোট: ৳${tv.toLocaleString()}</span>
+        </div>
+      </div>
+      <div class="si-count">
+        <div class="si-num ${status}">${s}</div>
+        <div class="si-unit">পিস</div>
+        <div class="si-status" style="${statusStyle}">${statusText}</div>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+window.setFilter=function(f,btn){ currentFilter=f; document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderProducts(); };
+requireAuth((user)=>{ _uid=user.uid; loadProducts(); });
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>

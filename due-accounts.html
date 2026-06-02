@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>বাকি হিসাব</title>
+<link rel="stylesheet" href="shared-styles.css">
+<style>
+.due-banner {
+  background:linear-gradient(135deg,#ef4444,#dc2626); border-radius:var(--radius);
+  padding:20px; text-align:center; margin-bottom:16px; color:#fff;
+}
+.due-banner .label { font-size:13px; opacity:0.85; }
+.due-banner .amount { font-size:36px; font-weight:800; margin-top:4px; }
+.due-banner .sub { font-size:13px; opacity:0.75; margin-top:4px; }
+
+.due-card {
+  background:var(--card); border:1.5px solid var(--border); border-radius:16px;
+  padding:16px; margin-bottom:12px; box-shadow:var(--shadow);
+  border-left:4px solid var(--red);
+}
+.dc-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.dc-avatar { width:42px; height:42px; background:linear-gradient(135deg,#ef4444,#dc2626); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; flex-shrink:0; }
+.dc-info { flex:1; padding:0 10px; }
+.dc-name { font-size:15px; font-weight:700; }
+.dc-phone { font-size:12px; color:var(--muted); margin-top:2px; }
+.dc-amount { text-align:right; }
+.dc-due { font-size:20px; font-weight:800; color:var(--red); }
+.dc-total { font-size:12px; color:var(--muted); }
+.dc-date { font-size:12px; color:var(--muted); margin-bottom:12px; }
+.dc-actions { display:flex; gap:8px; }
+.view-btn { flex:1; background:#eff6ff; color:var(--blue); border:1px solid #bfdbfe; border-radius:10px; padding:9px; font-family:'Hind Siliguri',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:0.15s; }
+.pay-btn { flex:1; background:#f0fdf4; color:var(--green); border:1px solid #86efac; border-radius:10px; padding:9px; font-family:'Hind Siliguri',sans-serif; font-size:13px; font-weight:700; cursor:pointer; transition:0.15s; }
+.view-btn:active, .pay-btn:active { transform:scale(0.97); }
+
+.modal-item { display:flex; justify-content:space-between; align-items:center; padding:12px; background:var(--bg); border-radius:12px; margin-bottom:8px; }
+.modal-summary { background:var(--bg); border-radius:14px; padding:14px; margin-top:12px; }
+.ms-row { display:flex; justify-content:space-between; font-size:14px; padding:5px 0; }
+.ms-row.big { font-size:17px; font-weight:800; border-top:1px solid var(--border); margin-top:8px; padding-top:10px; }
+.pay-form { background:var(--bg); border-radius:14px; padding:16px; margin-top:14px; }
+
+/* Payment history */
+.pay-history-title {
+  font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase;
+  letter-spacing:0.5px; margin:16px 0 10px; display:flex; align-items:center; gap:6px;
+}
+.pay-history-item {
+  display:flex; justify-content:space-between; align-items:center;
+  background:#f0fdf4; border:1px solid #86efac; border-radius:12px;
+  padding:10px 14px; margin-bottom:8px;
+}
+.phi-date { font-size:12px; color:var(--muted); margin-top:2px; }
+.phi-amount { font-size:16px; font-weight:800; color:var(--green); }
+.no-history { text-align:center; color:var(--muted); font-size:13px; padding:12px 0; }
+
+/* Print invoice styles */
+#printArea { display:none; }
+@media print {
+  body > *:not(#printArea) { display:none !important; }
+  #printArea {
+    display:block !important; position:fixed; inset:0;
+    padding:24px 30px; background:#fff; color:#000;
+    font-family:'Hind Siliguri',Arial,sans-serif; font-size:13px; z-index:9999;
+  }
+  @page {
+    margin: 10mm;
+    size: A4;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Hidden print area -->
+<div id="printArea"></div>
+
+<div class="page-header" style="background:linear-gradient(135deg,#ef4444,#dc2626)">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div>
+    <h1>বাকি হিসাব</h1>
+    <div class="sub">বকেয়া পরিশোধ ও হিসাব</div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="due-banner">
+    <div class="label">মোট বাকি</div>
+    <div class="amount" id="totalDueAmount">৳ ০</div>
+    <div class="sub" id="duePersonCount">০ জন বাকিদার</div>
+  </div>
+
+  <div class="card" style="padding:14px;margin-bottom:14px">
+    <div style="display:flex;gap:10px">
+      <input type="text" placeholder="🔍 নাম বা ফোন..." id="searchInput" oninput="filterDues()" style="flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:14px;outline:none">
+      <input type="date" id="dateFilter" onchange="filterDues()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:11px 10px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:13px;outline:none">
+    </div>
+  </div>
+
+  <div id="dueList"><div class="empty-state"><div class="empty-icon">⏳</div><p>লোড হচ্ছে...</p></div></div>
+</div>
+
+<!-- Item Modal -->
+<div class="modal-overlay" id="itemModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="itemModalTitle">ক্রয় বিবরণ</div>
+      <button class="modal-close" onclick="document.getElementById('itemModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="itemModalBody"></div>
+  </div>
+</div>
+
+<!-- Pay Modal -->
+<div class="modal-overlay" id="payModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="payModalTitle">পরিশোধ করুন</div>
+      <button class="modal-close" onclick="document.getElementById('payModal').classList.remove('open')">✕</button>
+    </div>
+    <div id="payModalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div></a>
+  <a href="due-accounts.html" class="nav-item active"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div><div class="nav-active-dot"></div></a>
+  <a href="reports.html" class="nav-item"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div></a>
+</nav>
+
+<script type="module">
+import { requireAuth, userRef, get, update } from './firebase-config.js';
+let allSales={}, currentPayId=null, bizName='আমার ব্যবসা', bizPhone='', bizAddress='', _uid='';
+
+function showToast(msg,type='success'){ const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast show ${type}`; setTimeout(()=>t.className='toast',2500); }
+
+function formatDate(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleDateString('bn-BD',{day:'numeric',month:'long',year:'numeric',timeZone:'Asia/Dhaka'});
+}
+function formatDateTime(iso){
+  if(!iso) return '';
+  return new Date(iso).toLocaleString('bn-BD',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Dhaka'});
+}
+
+function loadSales(){
+  get(userRef(_uid,'settings')).then(s=>{ const v=s.val()||{}; bizName=v.bizName||'আমার ব্যবসা'; bizPhone=v.bizPhone||''; bizAddress=v.bizAddress||''; });
+  get(userRef(_uid,'sales')).then(snap=>{ allSales=snap.val()||{}; renderDues(allSales); calcTotal(allSales); });
+}
+
+function calcTotal(sales){
+  let t=0,count=0; Object.values(sales).forEach(s=>{ t+=(s.due||0); if((s.due||0)>0)count++; });
+  document.getElementById('totalDueAmount').textContent='৳ '+t.toFixed(0);
+  document.getElementById('duePersonCount').textContent=count+' জন বাকিদার';
+}
+
+function renderDues(sales){
+  const list=document.getElementById('dueList');
+  const keys=Object.keys(sales).filter(k=>(sales[k].due||0)>0).sort((a,b)=>new Date(sales[b].date||0)-new Date(sales[a].date||0));
+  if(!keys.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">🎉</div><p>কোনো বাকি নেই!</p></div>';return;}
+  list.innerHTML=keys.map(k=>{
+    const s=sales[k];
+    const histCount=(s.payHistory||[]).length;
+    return `<div class="due-card">
+      <div class="dc-header">
+        <div class="dc-avatar">👤</div>
+        <div class="dc-info">
+          <div class="dc-name">${s.customerName||'অজানা'}</div>
+          <div class="dc-phone">📞 ${s.customerPhone||'নাম্বার নেই'}</div>
+          ${histCount>0?`<div style="font-size:11px;color:var(--green);margin-top:3px">✅ ${histCount}বার পরিশোধ করেছে</div>`:''}
+        </div>
+        <div class="dc-amount"><div class="dc-due">৳${(s.due||0).toFixed(0)}</div><div class="dc-total">মোট: ৳${(s.totalAmount||0).toFixed(0)}</div></div>
+      </div>
+      <div class="dc-date">📅 ${formatDate(s.date)}</div>
+      <div class="dc-actions">
+        <button class="view-btn" onclick="openItemModal('${k}')">👁 বিস্তারিত</button>
+        <button class="pay-btn" onclick="openPayModal('${k}')">💵 পরিশোধ</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.filterDues=function(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const date=document.getElementById('dateFilter').value;
+  const f={};
+  Object.keys(allSales).forEach(k=>{
+    const s=allSales[k];
+    const mt=!q||(s.customerName||'').toLowerCase().includes(q)||(s.customerPhone||'').includes(q);
+    const sd = s.date ? new Date(s.date).toLocaleDateString('en-CA',{timeZone:'Asia/Dhaka'}) : '';
+    const md=!date||sd===date;
+    if(mt&&md)f[k]=s;
+  });
+  renderDues(f);
+};
+
+window.openItemModal=function(id){
+  const s=allSales[id]; if(!s)return;
+  document.getElementById('itemModalTitle').textContent=s.customerName+'-এর ক্রয় বিবরণ';
+  const items=s.items||{};
+  let body=Object.keys(items).map(k=>{
+    const item=items[k];
+    return `<div class="modal-item">
+      <div><div style="font-size:14px;font-weight:700">${item.name||k}</div><div style="font-size:12px;color:var(--muted)">ক্রয়: ৳${item.buyPrice||0} × ${item.qty||1}</div></div>
+      <div style="font-size:15px;font-weight:800;color:var(--primary)">৳${((item.sellPrice||0)*(item.qty||1)).toFixed(0)}</div>
+    </div>`;
+  }).join('');
+  body+=`<div class="modal-summary">
+    <div class="ms-row"><span>মোট বিক্রয়</span><span>৳${(s.totalAmount||0).toFixed(0)}</span></div>
+    <div class="ms-row"><span>নগদ পেইড</span><span>৳${(s.cashPaid||0).toFixed(0)}</span></div>
+    <div class="ms-row big" style="color:var(--red)"><span>বর্তমান বাকি</span><span>৳${(s.due||0).toFixed(0)}</span></div>
+  </div>`;
+
+  // Payment history section
+  const hist = s.payHistory||[];
+  body += `<div class="pay-history-title">💰 পরিশোধের ইতিহাস</div>`;
+  if(!hist.length){
+    body += `<div class="no-history">এখনো কোনো পরিশোধ হয়নি</div>`;
+  } else {
+    body += hist.slice().reverse().map((h,i)=>`
+      <div class="pay-history-item">
+        <div>
+          <div style="font-size:14px;font-weight:700">পরিশোধ #${hist.length-i}</div>
+          <div class="phi-date">🕐 ${formatDateTime(h.date)}</div>
+        </div>
+        <div class="phi-amount">৳${parseFloat(h.amount).toFixed(0)}</div>
+      </div>`).join('');
+    const totalPaid = hist.reduce((a,h)=>a+parseFloat(h.amount||0),0);
+    body += `<div style="text-align:right;font-size:13px;color:var(--green);font-weight:700;margin-top:6px">মোট পরিশোধ: ৳${totalPaid.toFixed(0)}</div>`;
+  }
+
+  // Print button
+  body += `<button onclick="printPayHistory('${id}')" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,#4f6ef7,#6c8fff);color:#fff;border:none;border-radius:12px;font-family:'Hind Siliguri',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">🖨️ পরিশোধের রিপোর্ট প্রিন্ট করুন</button>`;
+
+  document.getElementById('itemModalBody').innerHTML=body;
+  document.getElementById('itemModal').classList.add('open');
+};
+
+window.printPayHistory=function(id){
+  const s=allSales[id]; if(!s)return;
+  const hist=s.payHistory||[];
+  const totalPaid=hist.reduce((a,h)=>a+parseFloat(h.amount||0),0);
+  const printDate=new Date().toLocaleDateString('bn-BD',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Asia/Dhaka'});
+
+  let rows=hist.slice().reverse().map((h,i)=>`
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #ddd;text-align:center">${hist.length-i}</td>
+      <td style="padding:8px 10px;border:1px solid #ddd">${formatDateTime(h.date)}</td>
+      <td style="padding:8px 10px;border:1px solid #ddd;text-align:right;font-weight:700;color:green">৳${parseFloat(h.amount).toFixed(0)}</td>
+    </tr>`).join('');
+
+  document.getElementById('printArea').innerHTML=`
+    <div style="text-align:center;border-bottom:3px double #000;padding-bottom:14px;margin-bottom:16px">
+      <div style="font-size:22px;font-weight:800">${bizName}</div>
+      ${bizAddress?`<div style="font-size:12px;color:#444;margin-top:2px">${bizAddress}</div>`:''}
+      ${bizPhone?`<div style="font-size:12px;color:#444">📞 ${bizPhone}</div>`:''}
+      <div style="font-size:13px;color:#666;margin-top:6px"> পরিশোধের রিপোর্ট</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:16px">
+      <div>
+        <div><strong>ক্রেতা:</strong> ${s.customerName||'-'}</div>
+        <div><strong>ফোন:</strong> ${s.customerPhone||'-'}</div>
+      </div>
+      <div style="text-align:right">
+        <div><strong>প্রিন্টের তারিখ:</strong> ${printDate}</div>
+        <div><strong>মূল বিক্রয়:</strong> ৳${(s.totalAmount||0).toFixed(0)}</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">
+      <thead>
+        <tr style="background:#f0f0f0">
+          <th style="padding:8px 10px;border:1px solid #ccc;text-align:center">#</th>
+          <th style="padding:8px 10px;border:1px solid #ccc;text-align:left">তারিখ ও সময়</th>
+          <th style="padding:8px 10px;border:1px solid #ccc;text-align:right">পরিমাণ</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="width:240px;margin-left:auto;border-top:2px solid #000;padding-top:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+        <span>মূল বিক্রয়:</span><span>৳${(s.totalAmount||0).toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+        <span>নগদ পেইড (বিক্রির সময়):</span><span>৳${Math.max(0,(s.cashPaid||0) - totalPaid).toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:green">
+        <span>পরে পরিশোধ:</span><span style="font-weight:700">৳${totalPaid.toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:green;border-top:1px solid #ccc;margin-top:4px;padding-top:6px">
+        <span>মোট পেইড:</span><span style="font-weight:700">৳${(s.cashPaid||0).toFixed(0)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;padding:8px 0;border-top:2px solid #000;margin-top:4px;color:#cc0000">
+        <span>বর্তমান বাকি:</span><span>৳${(s.due||0).toFixed(0)}</span>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:30px;font-size:12px;color:#777;border-top:1px dashed #ccc;padding-top:12px">
+      ধন্যবাদ আমাদের সাথে থাকার জন্য · ${bizName}
+    </div>`;
+
+  document.getElementById('itemModal').classList.remove('open');
+  setTimeout(()=>{
+    const w = window.open('','_blank','width=800,height=900');
+    w.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="UTF-8">
+      <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;700;800&display=swap" rel="stylesheet">
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Hind Siliguri',Arial,sans-serif; padding:30px; color:#000; }
+        @media print { @page { margin:8mm; } }
+      </style>
+    </head><body>${document.getElementById('printArea').innerHTML}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{ w.print(); w.close(); }, 600);
+  },150);
+};
+
+window.openPayModal=function(id){
+  const s=allSales[id]; if(!s)return;
+  currentPayId=id;
+  document.getElementById('payModalTitle').textContent=s.customerName+'-এর পরিশোধ';
+
+  const hist=s.payHistory||[];
+  let histHTML='';
+  if(hist.length){
+    histHTML=`<div class="pay-history-title">💰 আগের পরিশোধ</div>`;
+    histHTML+=hist.slice(-3).reverse().map(h=>`
+      <div class="pay-history-item">
+        <div><div style="font-size:13px;font-weight:700">পরিশোধ</div><div class="phi-date">${formatDateTime(h.date)}</div></div>
+        <div class="phi-amount">৳${parseFloat(h.amount).toFixed(0)}</div>
+      </div>`).join('');
+    if(hist.length>3) histHTML+=`<div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:8px">+ আরো ${hist.length-3}টি পরিশোধ</div>`;
+  }
+
+  document.getElementById('payModalBody').innerHTML=`
+    <div style="text-align:center;padding:10px 0 16px">
+      <div style="font-size:13px;color:var(--muted)">বর্তমান বাকি</div>
+      <div style="font-size:36px;font-weight:800;color:var(--red)">৳${(s.due||0).toFixed(0)}</div>
+    </div>
+    ${histHTML}
+    <div class="pay-form">
+      <div class="input-group"><label>পরিশোধের পরিমাণ (৳)</label><input type="number" id="payAmount" placeholder="০" min="0" max="${s.due||0}" oninput="if(this.value<0)this.value=0"></div>
+      <button class="btn btn-success" onclick="submitPayment()">✅ পরিশোধ করুন</button>
+    </div>`;
+  document.getElementById('payModal').classList.add('open');
+};
+
+window.submitPayment=async function(){
+  const amount=parseFloat(document.getElementById('payAmount').value)||0;
+  if(!amount||amount<=0){showToast('পরিমাণ দিন!','error');return;}
+  const s=allSales[currentPayId]; if(!s)return;
+  const newDue=Math.max(0,(s.due||0)-amount);
+
+  // Add to payment history
+  const nowISO = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Dhaka'})).toISOString();
+  const payHistory=[...(s.payHistory||[]),{amount,date:nowISO}];
+
+  await update(userRef(_uid,`sales/${currentPayId}`),{
+    due:newDue,
+    cashPaid:(s.cashPaid||0)+amount,
+    payHistory
+  });
+  allSales[currentPayId].due=newDue;
+  allSales[currentPayId].cashPaid=(s.cashPaid||0)+amount;
+  allSales[currentPayId].payHistory=payHistory;
+
+  document.getElementById('payModal').classList.remove('open');
+  showToast('✅ পরিশোধ সম্পন্ন!');
+  renderDues(allSales); calcTotal(allSales);
+};
+
+requireAuth((user)=>{ _uid=user.uid; loadSales(); });
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>পণ্য যোগ ও ইডিট</title>
+<link rel="stylesheet" href="shared-styles.css">
+<style>
+.img-upload-area {
+  border:2px dashed var(--border); border-radius:16px; padding:28px 20px;
+  text-align:center; cursor:pointer; transition:0.2s; position:relative;
+  background:var(--bg); margin-bottom:14px;
+}
+.img-upload-area:hover, .img-upload-area.dragover { border-color:var(--primary); background:#f0f4ff; }
+.img-upload-area input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.img-preview { width:100%; max-height:180px; object-fit:contain; border-radius:12px; display:none; }
+.upload-icon { font-size:38px; margin-bottom:8px; }
+.upload-text { color:var(--muted); font-size:14px; }
+
+.auto-total-box {
+  background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1.5px solid #86efac;
+  border-radius:12px; padding:14px; display:flex; justify-content:space-between; align-items:center;
+}
+.auto-total-box .label { font-size:13px; color:#16a34a; font-weight:500; }
+.auto-total-box .value { font-size:20px; font-weight:800; color:#16a34a; }
+
+.product-list { display:flex; flex-direction:column; gap:10px; }
+.product-item {
+  background:var(--card); border:1.5px solid var(--border); border-radius:16px;
+  padding:14px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:0.15s;
+}
+.product-item:active { transform:scale(0.98); border-color:var(--primary); }
+.product-item img { width:54px; height:54px; object-fit:cover; border-radius:12px; background:var(--bg); flex-shrink:0; }
+.p-name { font-size:15px; font-weight:700; }
+.p-meta { font-size:12px; color:var(--muted); margin-top:3px; }
+.p-stock { font-size:15px; font-weight:700; color:var(--primary); }
+.p-stock-label { font-size:11px; color:var(--muted); }
+
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.section-header .title { font-size:16px; font-weight:700; }
+.count-badge { background:var(--primary); color:#fff; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div>
+    <h1>পণ্য যোগ ও ইডিট</h1>
+    <div class="sub">নতুন পণ্য যুক্ত করুন বা সম্পাদনা করুন</div>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Search -->
+  <div class="card" style="padding:14px">
+    <input type="text" placeholder="🔍 পণ্যের নাম বা দাম দিয়ে খুঁজুন..." id="searchInput" oninput="filterProducts()" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-family:'Hind Siliguri',sans-serif;font-size:15px;outline:none">
+  </div>
+
+  <!-- Add Form -->
+  <div class="card" id="addForm">
+    <div class="card-title">✨ নতুন পণ্য যোগ করুন</div>
+    <div class="img-upload-area" id="imgUploadArea">
+      <input type="file" accept="image/*" id="imgInput" onchange="previewImage(this)">
+      <img class="img-preview" id="imgPreview">
+      <div id="uploadPlaceholder">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">পণ্যের ছবি আপলোড করুন<br><small>ক্লিক করুন</small></div>
+      </div>
+    </div>
+    <div class="input-group"><label>পণ্যের নাম *</label><input type="text" id="addName" placeholder="যেমন: চাল, ডাল, তেল..."></div>
+    <div class="input-group"><label>পণ্যের ধরন</label><input type="text" id="addType" placeholder="যেমন: খাদ্যপণ্য, পোশাক..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group"><label>ক্রয় মূল্য (৳) *</label><input type="number" id="addBuyPrice" placeholder="০" oninput="calcTotal('add')"></div>
+      <div class="input-group"><label>স্টক সংখ্যা *</label><input type="number" id="addStock" placeholder="০" oninput="calcTotal('add')"></div>
+    </div>
+    <div class="input-group">
+      <label>মোট ক্রয় মূল্য (অটো)</label>
+      <div class="auto-total-box"><span class="label">মোট:</span><span class="value" id="addTotal">৳ ০</span></div>
+    </div>
+    <button class="btn btn-primary" onclick="addProduct()" id="addBtn">✅ পণ্য যোগ করুন</button>
+  </div>
+
+  <!-- Edit Form -->
+  <div class="card" id="editForm" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="card-title" style="margin:0">✏️ পণ্য ইডিট করুন</div>
+      <button onclick="cancelEdit()" style="background:var(--bg);border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:6px 12px;border-radius:8px;font-family:inherit">✕ বাতিল</button>
+    </div>
+    <div class="img-upload-area" id="editImgArea">
+      <input type="file" accept="image/*" id="editImgInput" onchange="previewEditImage(this)">
+      <img class="img-preview" id="editImgPreview">
+      <div id="editUploadPlaceholder"><div class="upload-icon">📷</div><div class="upload-text">ছবি পরিবর্তন করুন</div></div>
+    </div>
+    <input type="hidden" id="editId"><input type="hidden" id="editOldImg">
+    <div class="input-group"><label>পণ্যের নাম</label><input type="text" id="editName"></div>
+    <div class="input-group"><label>পণ্যের ধরন</label><input type="text" id="editType"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="input-group"><label>ক্রয় মূল্য (৳)</label><input type="number" id="editBuyPrice" oninput="calcTotal('edit')"></div>
+      <div class="input-group"><label>স্টক সংখ্যা</label><input type="number" id="editStock" oninput="calcTotal('edit')"></div>
+    </div>
+    <div class="input-group">
+      <label>মোট ক্রয় মূল্য (অটো)</label>
+      <div class="auto-total-box"><span class="label">মোট:</span><span class="value" id="editTotal">৳ ০</span></div>
+    </div>
+    <button class="btn btn-primary" onclick="saveEdit()" id="saveBtn">💾 পরিবর্তন সংরক্ষণ</button>
+    <button class="btn btn-danger" onclick="deleteProduct()">🗑️ পণ্য ডিলেট করুন</button>
+  </div>
+
+  <!-- Product List -->
+  <div class="section-header">
+    <div class="title">📦 সকল পণ্য</div>
+    <div class="count-badge" id="productCount">০</div>
+  </div>
+
+  <!-- Import/Export -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <button onclick="exportProducts()" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;color:#16a34a;font-family:'Hind Siliguri',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+      ⬇️ Excel Export
+    </button>
+    <label style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;color:#1d4ed8;font-family:'Hind Siliguri',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">
+      ⬆️ Excel Import
+      <input type="file" accept=".xlsx,.xls,.csv" id="importFile" style="display:none" onchange="importProducts(this)">
+    </label>
+  </div>
+  <!-- Import preview -->
+  <div id="importPreview" style="display:none;background:#fff;border:1.5px solid #bfdbfe;border-radius:14px;padding:14px;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:10px">📋 Import প্রিভিউ</div>
+    <div id="importTable" style="overflow-x:auto;font-size:13px;max-height:200px;overflow-y:auto"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+      <button onclick="cancelImport()" style="padding:11px;background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;color:#dc2626;font-family:'Hind Siliguri',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">❌ বাতিল</button>
+      <button onclick="confirmImport()" style="padding:11px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;border-radius:12px;color:#fff;font-family:'Hind Siliguri',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">✅ Import করুন</button>
+    </div>
+  </div>
+
+  <div class="product-list" id="productList">
+    <div class="empty-state"><div class="empty-icon">⏳</div><p>লোড হচ্ছে...</p></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div></a>
+  <a href="due-accounts.html" class="nav-item"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div></a>
+  <a href="reports.html" class="nav-item"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div></a>
+</nav>
+
+<script type="module">
+import { db, ref, get, set, push, update, remove, requireAuth, userRef } from './firebase-config.js';
+const CLOUD_NAME='dbotalnzq', UPLOAD_PRESET='gufifpyg';
+let allProducts={}, addImgFile=null, editImgFile=null, _uid='';
+
+window.calcTotal=function(m){
+  const p=parseFloat(document.getElementById(m+'BuyPrice').value)||0;
+  const s=parseInt(document.getElementById(m+'Stock').value)||0;
+  document.getElementById(m+'Total').textContent='৳ '+(p*s).toLocaleString();
+};
+window.previewImage=function(input){ addImgFile=input.files[0]; if(!addImgFile)return; const r=new FileReader(); r.onload=e=>{document.getElementById('imgPreview').src=e.target.result;document.getElementById('imgPreview').style.display='block';document.getElementById('uploadPlaceholder').style.display='none';}; r.readAsDataURL(addImgFile); };
+window.previewEditImage=function(input){ editImgFile=input.files[0]; if(!editImgFile)return; const r=new FileReader(); r.onload=e=>{document.getElementById('editImgPreview').src=e.target.result;document.getElementById('editImgPreview').style.display='block';document.getElementById('editUploadPlaceholder').style.display='none';}; r.readAsDataURL(editImgFile); };
+
+async function uploadImg(file){ const fd=new FormData(); fd.append('file',file); fd.append('upload_preset',UPLOAD_PRESET); const res=await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,{method:'POST',body:fd}); return (await res.json()).secure_url; }
+
+function showToast(msg,type='success'){ const t=document.getElementById('toast'); t.textContent=msg; t.className=`toast show ${type}`; setTimeout(()=>t.className='toast',2500); }
+
+function loadProducts(){ get(userRef(_uid,'products')).then(snap=>{ allProducts=snap.val()||{}; window._allProducts=allProducts; renderProducts(allProducts); }); }
+requireAuth((user)=>{ _uid=user.uid; loadProducts(); });
+window._loadProducts = loadProducts;
+window._importToFirebase = async function(data) {
+  const existing = window._allProducts || {};
+  // নামের map তৈরি করো — name => firebase key
+  const nameToKey = {};
+  Object.keys(existing).forEach(k => {
+    nameToKey[(existing[k].name||'').trim().toLowerCase()] = k;
+  });
+
+  let added=0, updated=0;
+  for(const p of data){
+    const nameLower = p.name.trim().toLowerCase();
+    if(nameToKey[nameLower]){
+      // আগে থেকে আছে — update করো
+      await update(userRef(_uid,`products/${nameToKey[nameLower]}`),{
+        type: p.type||'পণ্য',
+        buyPrice: p.buyPrice,
+        stock: p.stock,
+        updatedAt: new Date().toISOString()
+      });
+      updated++;
+    } else {
+      // নতুন — add করো
+      const nr = push(userRef(_uid,'products'));
+      await set(nr,{name:p.name,type:p.type||'পণ্য',buyPrice:p.buyPrice,stock:p.stock,imgUrl:'',createdAt:new Date().toISOString()});
+      added++;
+    }
+  }
+  showToast(`✅ ${added}টি নতুন যোগ, ${updated}টি আপডেট!`);
+};
+
+function renderProducts(products){
+  const list=document.getElementById('productList');
+  const keys=Object.keys(products).sort((a,b)=>(products[a].name||'').localeCompare(products[b].name||''));
+  document.getElementById('productCount').textContent=keys.length;
+  if(!keys.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">📭</div><p>কোনো পণ্য নেই</p></div>';return;}
+  list.innerHTML=keys.map(k=>{
+    const p=products[k];
+    return `<div class="product-item" onclick="openEdit('${k}')">
+      <img src="${p.imgUrl||'https://placehold.co/54x54/f0f4ff/8494b0?text=📦'}" onerror="this.src='https://placehold.co/54x54/f0f4ff/8494b0?text=📦'">
+      <div style="flex:1"><div class="p-name">${p.name||''}</div><div class="p-meta">ক্রয়: ৳${p.buyPrice||0} · ${p.type||'পণ্য'}</div></div>
+      <div style="text-align:right"><div class="p-stock">${p.stock||0}</div><div class="p-stock-label">পিস</div></div>
+    </div>`;
+  }).join('');
+}
+
+window.filterProducts=function(){ const q=document.getElementById('searchInput').value.toLowerCase(); if(!q){renderProducts(allProducts);return;} const f={}; Object.keys(allProducts).forEach(k=>{if((allProducts[k].name||'').toLowerCase().includes(q)||String(allProducts[k].buyPrice||'').includes(q))f[k]=allProducts[k];}); renderProducts(f); };
+
+window.openEdit=function(id){ const p=allProducts[id]; document.getElementById('addForm').style.display='none'; document.getElementById('editForm').style.display='block'; document.getElementById('editId').value=id; document.getElementById('editName').value=p.name||''; document.getElementById('editType').value=p.type||''; document.getElementById('editBuyPrice').value=p.buyPrice||''; document.getElementById('editStock').value=p.stock||''; document.getElementById('editOldImg').value=p.imgUrl||''; calcTotal('edit'); editImgFile=null; const prev=document.getElementById('editImgPreview'); if(p.imgUrl){prev.src=p.imgUrl;prev.style.display='block';document.getElementById('editUploadPlaceholder').style.display='none';}else{prev.style.display='none';document.getElementById('editUploadPlaceholder').style.display='block';} window.scrollTo({top:0,behavior:'smooth'}); };
+window.cancelEdit=function(){ document.getElementById('editForm').style.display='none'; document.getElementById('addForm').style.display='block'; };
+
+window.addProduct=async function(){
+  const name=document.getElementById('addName').value.trim(),type=document.getElementById('addType').value.trim();
+  const buyPrice=parseFloat(document.getElementById('addBuyPrice').value),stock=parseInt(document.getElementById('addStock').value);
+  if(!name||isNaN(buyPrice)||isNaN(stock)){showToast('নাম, দাম ও স্টক দিন!','error');return;}
+  const btn=document.getElementById('addBtn'); btn.innerHTML='<span class="spinner"></span>সংরক্ষণ হচ্ছে...'; btn.disabled=true;
+  let imgUrl='';
+  try{ if(addImgFile)imgUrl=await uploadImg(addImgFile); const nr=push(userRef(_uid,'products')); await set(nr,{name,type,buyPrice,stock,imgUrl,createdAt:new Date().toISOString()}); showToast('✅ পণ্য যোগ হয়েছে!'); ['addName','addType','addBuyPrice','addStock'].forEach(id=>document.getElementById(id).value=''); document.getElementById('addTotal').textContent='৳ ০'; document.getElementById('imgPreview').style.display='none'; document.getElementById('uploadPlaceholder').style.display='block'; addImgFile=null; loadProducts(); }catch(e){showToast('ত্রুটি হয়েছে!','error');}
+  btn.innerHTML='✅ পণ্য যোগ করুন'; btn.disabled=false;
+};
+
+window.saveEdit=async function(){
+  const id=document.getElementById('editId').value,name=document.getElementById('editName').value.trim(),type=document.getElementById('editType').value.trim();
+  const buyPrice=parseFloat(document.getElementById('editBuyPrice').value),stock=parseInt(document.getElementById('editStock').value);
+  if(!name||isNaN(buyPrice)||isNaN(stock)){showToast('সব তথ্য দিন!','error');return;}
+  const btn=document.getElementById('saveBtn'); btn.innerHTML='<span class="spinner"></span>সংরক্ষণ হচ্ছে...'; btn.disabled=true;
+  let imgUrl=document.getElementById('editOldImg').value;
+  try{ if(editImgFile)imgUrl=await uploadImg(editImgFile); await update(userRef(_uid,`products/${id}`),{name,type,buyPrice,stock,imgUrl,updatedAt:new Date().toISOString()}); showToast('✅ পরিবর্তন সংরক্ষিত!'); cancelEdit(); loadProducts(); }catch(e){showToast('ত্রুটি!','error');}
+  btn.innerHTML='💾 পরিবর্তন সংরক্ষণ'; btn.disabled=false;
+};
+
+window.deleteProduct=async function(){ const id=document.getElementById('editId').value; if(!confirm('এই পণ্য ডিলেট করবেন?'))return; await remove(userRef(_uid,`products/${id}`)); showToast('পণ্য ডিলেট হয়েছে'); cancelEdit(); loadProducts(); };
+
+</script>
+
+<!-- SheetJS for Excel import/export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let importData = [];
+
+// ===== EXPORT =====
+window.exportProducts = function() {
+  const products = window._allProducts || {};
+  const keys = Object.keys(products);
+  if (!keys.length) { alert('কোনো পণ্য নেই!'); return; }
+
+  const rows = [
+    ['পণ্যের নাম', 'পণ্যের ধরন', 'ক্রয় মূল্য (৳)', 'স্টক সংখ্যা']
+  ];
+  keys.forEach(k => {
+    const p = products[k];
+    rows.push([p.name||'', p.type||'', p.buyPrice||0, p.stock||0]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:20},{wch:15},{wch:15},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'পণ্য তালিকা');
+  XLSX.writeFile(wb, 'পণ্য_তালিকা.xlsx');
+};
+
+// ===== IMPORT =====
+window.importProducts = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+      if (rows.length < 2) { alert('ফাইলে কোনো ডেটা নেই!'); return; }
+
+      // Auto-detect columns
+      const header = rows[0].map(h => String(h).toLowerCase().trim());
+      const nameIdx = header.findIndex(h => h.includes('নাম') || h.includes('name'));
+      const typeIdx = header.findIndex(h => h.includes('ধরন') || h.includes('type'));
+      const priceIdx = header.findIndex(h => h.includes('মূল্য') || h.includes('price') || h.includes('দাম'));
+      const stockIdx = header.findIndex(h => h.includes('স্টক') || h.includes('stock'));
+
+      if (nameIdx === -1 || priceIdx === -1 || stockIdx === -1) {
+        alert('কলাম খুঁজে পাওয়া যায়নি!\nফাইলে অবশ্যই থাকতে হবে:\nপণ্যের নাম, ক্রয় মূল্য, স্টক সংখ্যা');
+        return;
+      }
+
+      importData = rows.slice(1).filter(r => r[nameIdx]).map(r => ({
+        name: String(r[nameIdx]||'').trim(),
+        type: String(r[typeIdx]||'পণ্য').trim(),
+        buyPrice: parseFloat(r[priceIdx])||0,
+        stock: parseInt(r[stockIdx])||0,
+      }));
+
+      if (!importData.length) { alert('কোনো valid পণ্য পাওয়া যায়নি!'); return; }
+
+      const existing = window._allProducts || {};
+      const nameToKey = {};
+      Object.keys(existing).forEach(k => {
+        nameToKey[(existing[k].name||'').trim().toLowerCase()] = k;
+      });
+
+      let newCount=0, updateCount=0;
+      let tableHTML = `<table style="width:100%;border-collapse:collapse">
+        <tr style="background:#eff6ff;font-weight:700">
+          <td style="padding:6px 8px;border:1px solid #ddd">নাম</td>
+          <td style="padding:6px 8px;border:1px solid #ddd">মূল্য</td>
+          <td style="padding:6px 8px;border:1px solid #ddd">স্টক</td>
+          <td style="padding:6px 8px;border:1px solid #ddd">অবস্থা</td>
+        </tr>`;
+      importData.forEach(p => {
+        const isExisting = !!nameToKey[p.name.trim().toLowerCase()];
+        if(isExisting) updateCount++; else newCount++;
+        tableHTML += `<tr>
+          <td style="padding:6px 8px;border:1px solid #eee">${p.name}</td>
+          <td style="padding:6px 8px;border:1px solid #eee">৳${p.buyPrice}</td>
+          <td style="padding:6px 8px;border:1px solid #eee">${p.stock}</td>
+          <td style="padding:6px 8px;border:1px solid #eee">${isExisting
+            ? '<span style="color:#f97316;font-weight:700">🔄 আপডেট</span>'
+            : '<span style="color:#22c55e;font-weight:700">✨ নতুন</span>'}</td>
+        </tr>`;
+      });
+      tableHTML += `</table>`;
+      tableHTML += `<div style="margin-top:10px;display:flex;gap:10px">
+        <span style="font-size:13px;color:#22c55e;font-weight:700">✨ নতুন: ${newCount}টি</span>
+        <span style="font-size:13px;color:#f97316;font-weight:700">🔄 আপডেট: ${updateCount}টি</span>
+      </div>`;
+
+      document.getElementById('importTable').innerHTML = tableHTML;
+      document.getElementById('importPreview').style.display = 'block';
+    } catch(err) {
+      alert('ফাইল পড়তে সমস্যা হয়েছে! Excel বা CSV ফাইল দিন।');
+    }
+  };
+  reader.readAsBinaryString(file);
+  input.value = '';
+};
+
+window.cancelImport = function() {
+  importData = [];
+  document.getElementById('importPreview').style.display = 'none';
+};
+
+window.confirmImport = async function() {
+  if (!importData.length) return;
+  const btn = event.target;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px"></span>যোগ হচ্ছে...';
+  btn.disabled = true;
+
+  try {
+    // Import is done via window._importToFirebase set by module script
+    await window._importToFirebase(importData);
+    document.getElementById('importPreview').style.display = 'none';
+    importData = [];
+    window._loadProducts();
+  } catch(e) {
+    alert('Import ব্যর্থ হয়েছে!');
+  }
+  btn.innerHTML = '✅ Import করুন';
+  btn.disabled = false;
+};
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>

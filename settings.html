@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="হিসাব">
+  <meta name="theme-color" content="#4f6ef7">
+  <meta name="msapplication-TileColor" content="#4f6ef7">
+  <meta name="msapplication-TileImage" content="icons/icon-144.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>সেটিংস</title>
+<link rel="stylesheet" href="shared-styles.css">
+</head>
+<body>
+<div class="page-header" style="background:linear-gradient(135deg,#475569,#334155)">
+  <button class="back-btn" onclick="location.href='index.html'">←</button>
+  <div><h1>সেটিংস</h1><div class="sub">ব্যবসার তথ্য পরিবর্তন</div></div>
+</div>
+<div class="main">
+  <div class="card">
+    <div class="card-title">🏪 ব্যবসার তথ্য</div>
+    <div class="input-group"><label>ব্যবসার নাম *</label><input type="text" id="bizName" placeholder="আপনার ব্যবসার নাম"></div>
+    <div class="input-group"><label>ঠিকানা (ঐচ্ছিক)</label><input type="text" id="bizAddress" placeholder="ব্যবসার ঠিকানা"></div>
+    <div class="input-group"><label>ফোন নাম্বার (ঐচ্ছিক)</label><input type="tel" id="bizPhone" placeholder="01XXXXXXXXX"></div>
+    <button class="btn btn-primary" onclick="saveSettings()">✅ সংরক্ষণ করুন</button>
+    <button class="btn btn-danger" style="margin-top:10px" onclick="doLogout()">🚪 লগআউট করুন</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<nav class="bottom-nav">
+  <a href="index.html" class="nav-item"><div class="nav-item-icon">🏠</div><div class="nav-item-label">হোম</div></a>
+  <a href="sell.html" class="nav-item"><div class="nav-item-icon">🛒</div><div class="nav-item-label">বিক্রয়</div></a>
+  <a href="stock.html" class="nav-item"><div class="nav-item-icon">📦</div><div class="nav-item-label">স্টক</div></a>
+  <a href="due-accounts.html" class="nav-item"><div class="nav-item-icon">💳</div><div class="nav-item-label">বাকি</div></a>
+  <a href="reports.html" class="nav-item"><div class="nav-item-icon">📊</div><div class="nav-item-label">রিপোর্ট</div></a>
+</nav>
+<script type="module">
+import { auth, requireAuth, userRef, signOut, get, set } from './firebase-config.js';
+let _uid='';
+requireAuth((user)=>{
+_uid=user.uid;
+get(userRef(_uid,'settings')).then(snap => {
+  const s = snap.val() || {};
+  document.getElementById('bizName').value = s.bizName||'';
+  document.getElementById('bizAddress').value = s.bizAddress||'';
+  document.getElementById('bizPhone').value = s.bizPhone||'';
+});
+window.doLogout = async function() { await signOut(auth); window.location.href='login.html'; };
+window.saveSettings = async function() {
+  const bizName=document.getElementById('bizName').value.trim();
+  const bizAddress=document.getElementById('bizAddress').value.trim();
+  const bizPhone=document.getElementById('bizPhone').value.trim();
+  await set(userRef(_uid,'settings'),{bizName,bizAddress,bizPhone});
+  const t=document.getElementById('toast'); t.textContent='✅ সংরক্ষিত হয়েছে!'; t.className='toast show success'; setTimeout(()=>t.className='toast',2500);
+};
+}); // end requireAuth
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(reg => console.log("[PWA] SW registered"))
+      .catch(err => console.log("[PWA] SW error:", err));
+  });
+}
+let _deferredPrompt;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault(); _deferredPrompt = e;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "flex";
+});
+window.addEventListener("appinstalled", () => {
+  _deferredPrompt = null;
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+window.installPWA = function() {
+  if (_deferredPrompt) { _deferredPrompt.prompt(); _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; }); }
+};
+</script>
+</body>
+</html>
