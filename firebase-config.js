@@ -3,17 +3,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getDatabase, ref, set, get, push, update, remove, onValue, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyBArWUYRcTEqdygJYpst0kVL-WN5kG1S90",
-  authDomain: "sakib-37e22.firebaseapp.com",
-  databaseURL: "https://sakib-37e22-default-rtdb.firebaseio.com",
-  projectId: "sakib-37e22",
-  storageBucket: "sakib-37e22.firebasestorage.app",
-  messagingSenderId: "799424877512",
-  appId: "1:799424877512:web:419bf8157c41f41daf66fd",
-  measurementId: "G-6XP9WJB71G"
+  apiKey: "AIzaSyAwFBRI49HCt9De8vzYq83Li-vQr82q1HM",
+  authDomain: "sakib-vhai.firebaseapp.com",
+  databaseURL: "https://sakib-vhai-default-rtdb.firebaseio.com",
+  projectId: "sakib-vhai",
+  storageBucket: "sakib-vhai.firebasestorage.app",
+  messagingSenderId: "107198726417",
+  appId: "1:107198726417:web:3b45ccae9c2750cfd3ccb0",
+  measurementId: "G-3T3133SNHR"
 };
-
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
